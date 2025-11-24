@@ -301,44 +301,45 @@ function getBluesSnapOffset(stringIndex, fret) {
 }
 
 function attachPointerHandlers(el, stringIndex, fret, id, posToFret) {
-  let tracking = false;
-  let startX = 0;
-  let startY = 0;
+  const activeTouches = new Map(); // pointerId -> state
 
   const onDown = (ev) => {
     ev.preventDefault();
+    el.setPointerCapture(ev.pointerId);
     const point = getPoint(ev);
-    tracking = true;
-    startX = point.x;
-    startY = point.y;
-    el.classList.add("active");
 
     const baseSnap = Number(el.dataset.snap || "0");
     const snappedFret = fret;
-    const semitoneOffset = bluesMode ? baseSnap : 0;
 
-    // createVoice always starts at the physical fret pitch; immediately bend
-    // to the snapped blues pitch if blues mode is on.
-    createVoice(stringIndex, snappedFret, id).then(() => {
+    const touchId = ev.pointerId;
+    el.classList.add("active");
+
+    createVoice(stringIndex, snappedFret, `${id}_${touchId}`).then(() => {
       if (bluesMode && baseSnap !== 0) {
-        updateVoicePitch(id, baseSnap);
+        updateVoicePitch(`${id}_${touchId}`, baseSnap);
       }
+    });
+
+    activeTouches.set(touchId, {
+      startX: point.x,
+      startY: point.y,
+      baseSnap,
     });
   };
 
   const onMove = (ev) => {
-    if (!tracking) return;
+    if (!activeTouches.has(ev.pointerId)) return;
     ev.preventDefault();
+    const state = activeTouches.get(ev.pointerId);
     const point = getPoint(ev);
-    const dx = point.x - startX;
-    const dy = point.y - startY;
+    const dx = point.x - state.startX;
+    const dy = point.y - state.startY;
 
     const fretOffset = posToFret(point.relX) - fret;
     const bendSemis = -dy / 40;
-    const baseSnap = Number(el.dataset.snap || "0");
-    const semis = baseSnap + fretOffset + bendSemis;
+    const semis = state.baseSnap + fretOffset + bendSemis;
 
-    updateVoicePitch(id, semis);
+    updateVoicePitch(`${id}_${ev.pointerId}`, semis);
 
     const intensity = Math.min(1.5, Math.sqrt(dx * dx + dy * dy) / 40);
     const glow = el.querySelector(".note-glow");
@@ -359,27 +360,32 @@ function attachPointerHandlers(el, stringIndex, fret, id, posToFret) {
   };
 
   const onUp = (ev) => {
-    if (!tracking) return;
-    tracking = false;
+    if (!activeTouches.has(ev.pointerId)) return;
     ev.preventDefault();
-    el.classList.remove("active");
-    const glow = el.querySelector(".note-glow");
-    glow.style.transform = "scale(1)";
-    glow.style.boxShadow = "none";
+    activeTouches.delete(ev.pointerId);
+    el.releasePointerCapture(ev.pointerId);
 
-    const fretboardEl = document.getElementById("fretboard");
-    const stringRow = fretboardEl.querySelector(`.string-row[data-string="${stringIndex}"]`);
-    if (stringRow) {
-      stringRow.classList.remove("bending");
-      stringRow.style.transform = "translateY(0px)";
+    if (activeTouches.size === 0) {
+      el.classList.remove("active");
+      const glow = el.querySelector(".note-glow");
+      glow.style.transform = "scale(1)";
+      glow.style.boxShadow = "none";
+
+      const fretboardEl = document.getElementById("fretboard");
+      const stringRow = fretboardEl.querySelector(`.string-row[data-string="${stringIndex}"]`);
+      if (stringRow) {
+        stringRow.classList.remove("bending");
+        stringRow.style.transform = "translateY(0px)";
+      }
     }
-    stopVoice(id);
+
+    stopVoice(`${id}_${ev.pointerId}`);
   };
 
   el.addEventListener("pointerdown", onDown);
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointercancel", onUp);
+  el.addEventListener("pointermove", onMove);
+  el.addEventListener("pointerup", onUp);
+  el.addEventListener("pointercancel", onUp);
 }
 
 function getPoint(ev) {
