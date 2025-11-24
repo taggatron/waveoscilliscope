@@ -19,6 +19,9 @@ let synthOsc = null;
 let synthGain = null;
 let synthMode = false;
 
+// Track the most recently relevant audio frequency for header display
+let currentHeaderFreq = 261.63;
+
 const NUM_STRINGS = 6;
 const NUM_FRETS = 16; // 0-15
 
@@ -130,6 +133,9 @@ async function createVoice(stringIndex, fret, id) {
     fret,
   };
   activeVoices.set(id, voice);
+
+  // Update header frequency to reflect this note
+  currentHeaderFreq = freq;
   return voice;
 }
 
@@ -188,6 +194,9 @@ function updateVoicePitch(id, semitoneOffset) {
 
   voice.baseFreq = newFreq;
   voice.playbackRate = newRate;
+
+  // Keep header frequency in sync with the bent/slid pitch
+  currentHeaderFreq = newFreq;
 }
 
 // Fretboard rendering and interaction
@@ -466,8 +475,8 @@ function startScopeDraw() {
     }
     scopeCtx.stroke();
 
-    // Header decorative oscilloscope: always render a smooth sine-like
-    // wave using current synth frequency (or a default if off).
+    // Header decorative oscilloscope: render a static sine-like
+    // wave using the most recent note / synth frequency.
     const hw = headerScopeCanvas.width;
     const hh = headerScopeCanvas.height;
     headerScopeCtx.clearRect(0, 0, hw, hh);
@@ -481,8 +490,14 @@ function startScopeDraw() {
     headerScopeCtx.strokeStyle = hgrd;
     headerScopeCtx.beginPath();
 
-    const freq = synthOsc ? synthOsc.frequency.value : 261.63;
-    const cycles = 2.2;
+    const freq = currentHeaderFreq || (synthOsc ? synthOsc.frequency.value : 261.63);
+    // Map frequency to a visual cycles count: lower notes show
+    // fewer cycles, higher notes more cycles across the header.
+    const minCycles = 1.3;
+    const maxCycles = 4.5;
+    const clampedFreq = Math.min(880, Math.max(40, freq));
+    const norm = (Math.log2(clampedFreq) - Math.log2(40)) / (Math.log2(880) - Math.log2(40));
+    const cycles = minCycles + (maxCycles - minCycles) * norm;
     const amp = hh * 0.32;
     for (let x = 0; x <= hw; x++) {
       const t = (x / hw) * cycles * 2 * Math.PI;
@@ -534,6 +549,9 @@ function ensureSynth() {
 
   synthOsc.connect(synthGain).connect(oscilloscopeAnalyser);
   synthOsc.start();
+
+  // Reflect synthetic oscillator in header display when active
+  currentHeaderFreq = synthOsc.frequency.value;
 }
 
 function setSynthActive(active) {
@@ -586,6 +604,7 @@ function init() {
     ensureSynth();
     if (synthOsc) {
       synthOsc.frequency.setTargetAtTime(val, audioCtx.currentTime, 0.03);
+      currentHeaderFreq = val;
     }
   });
 
