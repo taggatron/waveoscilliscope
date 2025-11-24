@@ -331,3 +331,19 @@ main {
     height: 260px;
   }
 }
+
+@media (max-width: 520px) {
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-text {
+    text-align: center;
+  }
+
+  #headerScope {
+    width: 100%;
+    min-width: 0;
+  }
+}
