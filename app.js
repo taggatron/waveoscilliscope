@@ -231,8 +231,8 @@ function buildFretboard() {
       hotspot.dataset.string = s;
       hotspot.dataset.fret = f;
 
-      const isBlues = isBluesNote(s, f);
-      hotspot.dataset.blues = isBlues ? "1" : "0";
+      const snapped = getBluesSnapOffset(s, f);
+      hotspot.dataset.snap = String(snapped);
 
       attachPointerHandlers(hotspot, s, f, id, posToFret);
 
@@ -241,13 +241,33 @@ function buildFretboard() {
   }
 }
 
-function isBluesNote(stringIndex, fret) {
+function getBluesSnapOffset(stringIndex, fret) {
   // Map each string to its open-string note in semitones relative to A2 = 0
   // E2: -5, A2: 0, D3: 5, G3: 10, B3: 14, E4: 19
   const STRING_OFFSETS = [-5, 0, 5, 10, 14, 19];
   const semisFromA = STRING_OFFSETS[stringIndex] + fret;
   const mod = ((semisFromA % 12) + 12) % 12;
-  return bluesMode ? MINOR_PENT_INTERVALS.includes(mod) : true;
+
+  if (!bluesMode) return 0;
+
+  // Find nearest minor-pentatonic interval in semitones
+  let best = MINOR_PENT_INTERVALS[0];
+  let bestDist = Math.abs(mod - best);
+  for (let i = 1; i < MINOR_PENT_INTERVALS.length; i++) {
+    const cand = MINOR_PENT_INTERVALS[i];
+    const dist = Math.abs(mod - cand);
+    if (dist < bestDist) {
+      best = cand;
+      bestDist = dist;
+    }
+  }
+
+  // Snap offset (in semitones) from the physical fret pitch
+  let offset = best - mod;
+  // Keep offsets small (e.g. within ±2 semitones) for adjacent frets
+  if (offset > 2) offset -= 12;
+  if (offset < -2) offset += 12;
+  return offset;
 }
 
 function attachPointerHandlers(el, stringIndex, fret, id, posToFret) {
@@ -262,9 +282,18 @@ function attachPointerHandlers(el, stringIndex, fret, id, posToFret) {
     startX = point.x;
     startY = point.y;
     el.classList.add("active");
-    if (el.dataset.blues === "1" || !bluesMode) {
-      createVoice(stringIndex, fret, id);
-    }
+
+    const baseSnap = Number(el.dataset.snap || "0");
+    const snappedFret = fret;
+    const semitoneOffset = bluesMode ? baseSnap : 0;
+
+    // createVoice always starts at the physical fret pitch; immediately bend
+    // to the snapped blues pitch if blues mode is on.
+    createVoice(stringIndex, snappedFret, id).then(() => {
+      if (bluesMode && baseSnap !== 0) {
+        updateVoicePitch(id, baseSnap);
+      }
+    });
   };
 
   const onMove = (ev) => {
@@ -276,7 +305,8 @@ function attachPointerHandlers(el, stringIndex, fret, id, posToFret) {
 
     const fretOffset = posToFret(point.relX) - fret;
     const bendSemis = -dy / 40;
-    const semis = fretOffset + bendSemis;
+    const baseSnap = Number(el.dataset.snap || "0");
+    const semis = baseSnap + fretOffset + bendSemis;
 
     updateVoicePitch(id, semis);
 
