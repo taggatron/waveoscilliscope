@@ -14,6 +14,11 @@ let baseSampleBuffer = null;
 const BASE_SAMPLE_FREQ = 92.5;
 const MAX_SAMPLE_WINDOW = 0.8; // seconds from start of clip to use
 
+// Synthetic oscilloscope tone (middle C drone)
+let synthOsc = null;
+let synthGain = null;
+let synthMode = false;
+
 const NUM_STRINGS = 6;
 const NUM_FRETS = 16; // 0-15
 
@@ -408,6 +413,10 @@ const scopeCanvas = document.getElementById("oscilloscope");
 const scopeCtx = scopeCanvas.getContext("2d");
 let scopeRunning = false;
 
+const headerScopeCanvas = document.getElementById("headerScope");
+const headerScopeCtx = headerScopeCanvas.getContext("2d");
+
+
 function startScopeDraw() {
   if (scopeRunning) return;
   scopeRunning = true;
@@ -432,15 +441,56 @@ function startScopeDraw() {
     scopeCtx.strokeStyle = grd;
     scopeCtx.beginPath();
 
-    const slice = w / buffer.length;
-    for (let i = 0; i < buffer.length; i++) {
-      const v = buffer[i] / 128.0;
-      const y = (v * h) / 2;
-      const x = i * slice;
-      if (i === 0) scopeCtx.moveTo(x, y);
-      else scopeCtx.lineTo(x, y);
+    if (synthMode) {
+      // In synthetic mode, show a fixed time window so wavelength
+      // visibly shrinks as frequency increases and stretches as it lowers.
+      const visibleSamples = 1024;
+      const count = Math.min(visibleSamples, buffer.length);
+      const slice = w / count;
+      for (let i = 0; i < count; i++) {
+        const v = buffer[i] / 128.0;
+        const y = (v * h) / 2;
+        const x = i * slice;
+        if (i === 0) scopeCtx.moveTo(x, y);
+        else scopeCtx.lineTo(x, y);
+      }
+    } else {
+      const slice = w / buffer.length;
+      for (let i = 0; i < buffer.length; i++) {
+        const v = buffer[i] / 128.0;
+        const y = (v * h) / 2;
+        const x = i * slice;
+        if (i === 0) scopeCtx.moveTo(x, y);
+        else scopeCtx.lineTo(x, y);
+      }
     }
     scopeCtx.stroke();
+
+    // Header decorative oscilloscope: always render a smooth sine-like
+    // wave using current synth frequency (or a default if off).
+    const hw = headerScopeCanvas.width;
+    const hh = headerScopeCanvas.height;
+    headerScopeCtx.clearRect(0, 0, hw, hh);
+
+    const hgrd = headerScopeCtx.createLinearGradient(0, 0, hw, 0);
+    hgrd.addColorStop(0, "#43e9ff");
+    hgrd.addColorStop(0.5, "#ffe55a");
+    hgrd.addColorStop(1, "#ff5af1");
+
+    headerScopeCtx.lineWidth = 2.4;
+    headerScopeCtx.strokeStyle = hgrd;
+    headerScopeCtx.beginPath();
+
+    const freq = synthOsc ? synthOsc.frequency.value : 261.63;
+    const cycles = 2.2;
+    const amp = hh * 0.32;
+    for (let x = 0; x <= hw; x++) {
+      const t = (x / hw) * cycles * 2 * Math.PI;
+      const y = hh / 2 + Math.sin(t) * amp;
+      if (x === 0) headerScopeCtx.moveTo(x, y);
+      else headerScopeCtx.lineTo(x, y);
+    }
+    headerScopeCtx.stroke();
   }
 
   draw();
@@ -471,21 +521,82 @@ async function toggleMic() {
   }
 }
 
+function ensureSynth() {
+  ensureAudio();
+  if (synthOsc && synthGain) return;
+
+  synthOsc = audioCtx.createOscillator();
+  synthGain = audioCtx.createGain();
+
+  synthOsc.type = "sine";
+  synthOsc.frequency.value = 261.63; // middle C
+  synthGain.gain.value = 0.4;
+
+  synthOsc.connect(synthGain).connect(oscilloscopeAnalyser);
+  synthOsc.start();
+}
+
+function setSynthActive(active) {
+  ensureAudio();
+  synthMode = active;
+  if (active) {
+    ensureSynth();
+  } else if (synthGain) {
+    synthGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+  }
+}
+
 function init() {
   buildFretboard();
   const btn = document.getElementById("micToggle");
   btn.addEventListener("click", toggleMic);
 
-   const bluesBtn = document.getElementById("bluesToggle");
-   const modeName = document.getElementById("modeName");
-   bluesBtn.addEventListener("click", () => {
-     bluesMode = !bluesMode;
-     bluesBtn.classList.toggle("active", bluesMode);
-     modeName.textContent = bluesMode ? "Blues (A minor pentatonic)" : "Full fretboard";
+  const bluesBtn = document.getElementById("bluesToggle");
+  const modeName = document.getElementById("modeName");
+  bluesBtn.addEventListener("click", () => {
+    bluesMode = !bluesMode;
+    bluesBtn.classList.toggle("active", bluesMode);
+    modeName.textContent = bluesMode ? "Blues (A minor pentatonic)" : "Full fretboard";
 
-     // Rebuild fretboard so blues markers / allowed notes update
-     buildFretboard();
-   });
+    // Rebuild fretboard so blues markers / allowed notes update
+    buildFretboard();
+  });
+
+  const synthBtn = document.getElementById("synthToggle");
+  const synthPanel = document.getElementById("synthPanel");
+  const freqDial = document.getElementById("freqDial");
+  const ampDial = document.getElementById("ampDial");
+  const freqLabel = document.getElementById("freqLabel");
+  const ampLabel = document.getElementById("ampLabel");
+
+  synthBtn.addEventListener("click", () => {
+    const nowActive = !synthBtn.classList.contains("active");
+    synthBtn.classList.toggle("active", nowActive);
+    if (nowActive) {
+      synthPanel.classList.remove("hidden");
+    } else {
+      synthPanel.classList.add("hidden");
+    }
+    setSynthActive(nowActive);
+  });
+
+  freqDial.addEventListener("input", () => {
+    const val = parseFloat(freqDial.value);
+    freqLabel.textContent = `${Math.round(val)} Hz`;
+    ensureSynth();
+    if (synthOsc) {
+      synthOsc.frequency.setTargetAtTime(val, audioCtx.currentTime, 0.03);
+    }
+  });
+
+  ampDial.addEventListener("input", () => {
+    const val = parseFloat(ampDial.value);
+    ampLabel.textContent = val.toFixed(2);
+    ensureSynth();
+    if (synthGain) {
+      synthGain.gain.setTargetAtTime(val, audioCtx.currentTime, 0.03);
+    }
+  });
 }
 
 if (document.readyState === "loading") {

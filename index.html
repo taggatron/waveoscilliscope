@@ -11,6 +11,7 @@
     <header class="app-header">
       <h1>Wave Guitar Lab</h1>
       <p>Tap, bend, slide and see your sound.</p>
+      <canvas id="headerScope" width="600" height="80"></canvas>
     </header>
 
     <main>
@@ -28,7 +29,22 @@
       <section class="scope-section">
         <div class="scope-header">
           <h2>Live Oscilloscope</h2>
-          <button id="micToggle">Enable Mic</button>
+          <div class="scope-controls">
+            <button id="micToggle">Enable Mic</button>
+            <button id="synthToggle">Synthetic</button>
+          </div>
+        </div>
+        <div id="synthPanel" class="synth-panel hidden">
+          <div class="dial-group">
+            <label for="freqDial">Frequency</label>
+            <input id="freqDial" type="range" min="40" max="880" value="261.63" step="1" />
+            <span id="freqLabel">261 Hz</span>
+          </div>
+          <div class="dial-group">
+            <label for="ampDial">Amplitude</label>
+            <input id="ampDial" type="range" min="0" max="1" value="0.4" step="0.01" />
+            <span id="ampLabel">0.40</span>
+          </div>
         </div>
         <canvas id="oscilloscope" width="600" height="200"></canvas>
       </section>
