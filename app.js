@@ -144,11 +144,41 @@ function updateVoicePitch(id, semitoneOffset) {
   const voice = activeVoices.get(id);
   if (!voice) return;
   const baseFreq = STRING_BASE_FREQS[voice.stringIndex];
-  const newFreq = baseFreq * Math.pow(2, (voice.fret + semitoneOffset) / 12);
+  let effectiveSemis = voice.fret + semitoneOffset;
+
+  if (bluesMode) {
+    // In blues mode, glide towards the nearest minor-pentatonic degree
+    // so continuous slides naturally fall onto the next scale tone.
+    const STRING_OFFSETS = [-5, 0, 5, 10, 14, 19];
+    const semisFromA = STRING_OFFSETS[voice.stringIndex] + effectiveSemis;
+    const mod = ((semisFromA % 12) + 12) % 12;
+
+    let best = MINOR_PENT_INTERVALS[0];
+    let bestDist = Math.abs(mod - best);
+    for (let i = 1; i < MINOR_PENT_INTERVALS.length; i++) {
+      const cand = MINOR_PENT_INTERVALS[i];
+      const dist = Math.abs(mod - cand);
+      if (dist < bestDist) {
+        best = cand;
+        bestDist = dist;
+      }
+    }
+
+    const snapOffset = best - mod;
+    let snappedSemisFromA = semisFromA + snapOffset;
+
+    // Keep motion reasonably close to the physical position while sliding
+    if (snappedSemisFromA - semisFromA > 2) snappedSemisFromA -= 12;
+    if (snappedSemisFromA - semisFromA < -2) snappedSemisFromA += 12;
+
+    effectiveSemis = snappedSemisFromA - STRING_OFFSETS[voice.stringIndex];
+  }
+
+  const newFreq = baseFreq * Math.pow(2, effectiveSemis / 12);
   const newRate = newFreq / BASE_SAMPLE_FREQ;
 
   if (voice.src) {
-    voice.src.playbackRate.setTargetAtTime(newRate, audioCtx.currentTime, 0.02);
+    voice.src.playbackRate.setTargetAtTime(newRate, audioCtx.currentTime, 0.03);
   }
 
   voice.baseFreq = newFreq;
