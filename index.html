@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guitar Fretboard Oscilloscope</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <h1>Wave Guitar Lab</h1>
+      <p>Tap, bend, slide and see your sound.</p>
+    </header>
+
+    <main>
+      <section class="fretboard-section">
+        <div id="fretboard"></div>
+      </section>
+
+      <section class="scope-section">
+        <div class="scope-header">
+          <h2>Live Oscilloscope</h2>
+          <button id="micToggle">Enable Mic</button>
+        </div>
+        <canvas id="oscilloscope" width="600" height="200"></canvas>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

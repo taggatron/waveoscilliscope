@@ -1,0 +1,218 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #050816;
+  --bg-alt: #0b1020;
+  --accent: #ff5af1;
+  --accent2: #43e9ff;
+  --accent3: #ffe55a;
+  --string: #f0f4ff;
+  --fret: #2b3250;
+  --text: #f9fbff;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  background: radial-gradient(circle at top, #201b4a 0, #050816 45%, #020510 100%);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+}
+
+#app {
+  width: 100%;
+  max-width: 960px;
+  padding: 16px;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.app-header h1 {
+  font-size: 1.8rem;
+  letter-spacing: 0.04em;
+  background: linear-gradient(120deg, var(--accent), var(--accent2), var(--accent3));
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.app-header p {
+  font-size: 0.9rem;
+  color: #c8d0ff;
+  margin-top: 4px;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fretboard-section {
+  background: linear-gradient(145deg, #070b18, #11172b);
+  border-radius: 18px;
+  padding: 12px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+#fretboard {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  border-radius: 14px;
+  background: radial-gradient(circle at top, #282e4f 0, #14192c 40%, #0a0f1f 100%);
+  overflow: hidden;
+  touch-action: none;
+}
+
+.string-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.string-core {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+}
+
+.string-highlight {
+  position: absolute;
+  inset: -5px;
+  border-radius: 999px;
+  mix-blend-mode: screen;
+  opacity: 0.0;
+  transition: opacity 0.12s ease-out, transform 0.12s ease-out, box-shadow 0.12s ease-out;
+}
+
+.string-row.bending .string-highlight {
+  opacity: 0.9;
+  transform: scaleY(1.3);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.5);
+}
+
+.fret-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(180, 190, 255, 0.08));
+}
+
+.fret-label {
+  position: absolute;
+  bottom: 6px;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  color: #9aa5ff;
+  pointer-events: none;
+}
+
+.note-hotspot {
+  position: absolute;
+  width: 22px;
+  height: 32px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: none;
+  background: transparent;
+}
+
+.note-hotspot::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.16s ease-out, transform 0.16s ease-out;
+}
+
+.note-hotspot.active::before {
+  opacity: 0;
+  transform: scale(1);
+}
+
+.note-glow {
+  position: absolute;
+  inset: -18px;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(255, 140, 250, 0.0), rgba(255, 140, 250, 0.4));
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 0.12s ease-out, transform 0.12s ease-out, box-shadow 0.12s ease-out;
+}
+
+.note-hotspot.active .note-glow {
+  opacity: 1;
+}
+
+.scope-section {
+  background: linear-gradient(145deg, #070b18, #11172b);
+  border-radius: 18px;
+  padding: 12px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.scope-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.scope-header h2 {
+  font-size: 1rem;
+}
+
+#micToggle {
+  border-radius: 999px;
+  padding: 6px 14px;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #050816;
+  background: linear-gradient(120deg, var(--accent2), var(--accent3));
+  box-shadow: 0 8px 18px rgba(67, 233, 255, 0.35);
+  cursor: pointer;
+}
+
+#micToggle.active {
+  background: linear-gradient(120deg, #18c172, #a7ff5a);
+  box-shadow: 0 8px 18px rgba(68, 255, 140, 0.35);
+}
+
+#oscilloscope {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 14px;
+  background: radial-gradient(circle at top, #111729 0, #050816 40%, #020410 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+@media (min-width: 768px) {
+  main {
+    flex-direction: column;
+  }
+
+  #fretboard {
+    height: 260px;
+  }
+}
