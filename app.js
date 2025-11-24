@@ -23,6 +23,11 @@ const STRING_BASE_FREQS = [82.41, 110.0, 146.83, 196.0, 246.94, 329.63];
 // Store active notes keyed by id
 const activeVoices = new Map();
 
+// Blues scale mode (A minor pentatonic over standard tuning)
+let bluesMode = false;
+// Semitone offsets within the minor pentatonic: 1, b3, 4, 5, b7
+const MINOR_PENT_INTERVALS = [0, 3, 5, 7, 10];
+
 function ensureAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -226,11 +231,23 @@ function buildFretboard() {
       hotspot.dataset.string = s;
       hotspot.dataset.fret = f;
 
+      const isBlues = isBluesNote(s, f);
+      hotspot.dataset.blues = isBlues ? "1" : "0";
+
       attachPointerHandlers(hotspot, s, f, id, posToFret);
 
       fretboardEl.appendChild(hotspot);
     }
   }
+}
+
+function isBluesNote(stringIndex, fret) {
+  // Map each string to its open-string note in semitones relative to A2 = 0
+  // E2: -5, A2: 0, D3: 5, G3: 10, B3: 14, E4: 19
+  const STRING_OFFSETS = [-5, 0, 5, 10, 14, 19];
+  const semisFromA = STRING_OFFSETS[stringIndex] + fret;
+  const mod = ((semisFromA % 12) + 12) % 12;
+  return bluesMode ? MINOR_PENT_INTERVALS.includes(mod) : true;
 }
 
 function attachPointerHandlers(el, stringIndex, fret, id, posToFret) {
@@ -245,7 +262,9 @@ function attachPointerHandlers(el, stringIndex, fret, id, posToFret) {
     startX = point.x;
     startY = point.y;
     el.classList.add("active");
-    createVoice(stringIndex, fret, id);
+    if (el.dataset.blues === "1" || !bluesMode) {
+      createVoice(stringIndex, fret, id);
+    }
   };
 
   const onMove = (ev) => {
@@ -390,6 +409,17 @@ function init() {
   buildFretboard();
   const btn = document.getElementById("micToggle");
   btn.addEventListener("click", toggleMic);
+
+   const bluesBtn = document.getElementById("bluesToggle");
+   const modeName = document.getElementById("modeName");
+   bluesBtn.addEventListener("click", () => {
+     bluesMode = !bluesMode;
+     bluesBtn.classList.toggle("active", bluesMode);
+     modeName.textContent = bluesMode ? "Blues (A minor pentatonic)" : "Full fretboard";
+
+     // Rebuild fretboard so blues markers / allowed notes update
+     buildFretboard();
+   });
 }
 
 if (document.readyState === "loading") {

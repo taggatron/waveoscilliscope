@@ -64,6 +64,43 @@ main {
   border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
+.fretboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mode-labels {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.72rem;
+  color: #b9c4ff;
+}
+
+#modeName {
+  font-weight: 600;
+  color: #f4f6ff;
+}
+
+#bluesToggle {
+  border-radius: 999px;
+  padding: 6px 12px;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #050816;
+  background: linear-gradient(120deg, var(--accent), var(--accent2));
+  box-shadow: 0 8px 18px rgba(255, 90, 241, 0.32);
+  cursor: pointer;
+}
+
+#bluesToggle.active {
+  background: linear-gradient(120deg, #18c172, #a7ff5a);
+  box-shadow: 0 8px 18px rgba(68, 255, 140, 0.35);
+}
+
 #fretboard {
   position: relative;
   width: 100%;
